@@ -1,4 +1,4 @@
+# System dependency: ffmpeg (install separately via apt/pacman)
 streamlit>=1.32
 openai>=1.30
 python-dotenv>=1.0
-pydub>=0.25

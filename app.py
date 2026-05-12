@@ -1,4 +1,6 @@
 import os
+import subprocess
+import threading
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -7,6 +9,32 @@ from utils import download_gdrive, fmt_display, to_json, to_srt, to_txt, to_vtt
 from whisper_service import transcribe
 
 load_dotenv()
+
+
+def _start_ngrok():
+    token = os.getenv("NGROK_AUTHTOKEN", "").strip()
+    if not token:
+        return
+    subprocess.run(["ngrok", "config", "add-authtoken", token], capture_output=True)
+    proc = subprocess.Popen(
+        ["ngrok", "http", "8501", "--log=stdout", "--log-format=json"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+    )
+    for line in proc.stdout:
+        if '"url":"https://' in line:
+            import json
+            try:
+                url = json.loads(line).get("url")
+                if url:
+                    print(f"\n🌐 Public URL: {url}\n", flush=True)
+                    break
+            except Exception:
+                pass
+
+
+if "ngrok_started" not in st.session_state:
+    st.session_state.ngrok_started = True
+    threading.Thread(target=_start_ngrok, daemon=True).start()
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
