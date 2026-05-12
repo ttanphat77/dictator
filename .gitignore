@@ -1,0 +1,16 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ngrok
+.ngrok/
+
+# OS
+.DS_Store
+Thumbs.db
