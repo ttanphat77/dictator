@@ -1,4 +1,36 @@
 import json
+import re
+
+import requests
+
+
+def download_gdrive(share_url: str) -> tuple[bytes, str]:
+    """Download a file from a Google Drive share link. Returns (bytes, filename)."""
+    m = re.search(r"/file/d/([a-zA-Z0-9_-]+)", share_url) or \
+        re.search(r"[?&]id=([a-zA-Z0-9_-]+)", share_url)
+    if not m:
+        raise ValueError("Cannot extract file ID from Google Drive URL")
+
+    file_id = m.group(1)
+    dl_url = (
+        f"https://drive.usercontent.google.com/download"
+        f"?id={file_id}&export=download&authuser=0&confirm=t"
+    )
+
+    resp = requests.get(dl_url, timeout=300)
+    resp.raise_for_status()
+
+    if "text/html" in resp.headers.get("content-type", ""):
+        raise RuntimeError(
+            "Google Drive returned an HTML page. "
+            "Make sure the file is shared as 'Anyone with the link'."
+        )
+
+    cd = resp.headers.get("content-disposition", "")
+    name_match = re.search(r'filename\*?=(?:UTF-8\'\')?\"?([^\";\n]+)\"?', cd)
+    filename = name_match.group(1).strip('"') if name_match else f"{file_id}.mp3"
+
+    return resp.content, filename
 
 
 def _fmt_srt(sec: float) -> str:

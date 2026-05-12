@@ -3,7 +3,7 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 
-from utils import fmt_display, to_json, to_srt, to_txt, to_vtt
+from utils import download_gdrive, fmt_display, to_json, to_srt, to_txt, to_vtt
 from whisper_service import transcribe
 
 load_dotenv()
@@ -121,6 +121,12 @@ uploaded = st.file_uploader(
     help=f"Supported: {', '.join(SUPPORTED_EXT)}  ·  Files over 25 MB are split automatically",
 )
 
+gdrive_url = st.text_input(
+    "Or paste Google Drive link",
+    placeholder="https://drive.google.com/file/d/...",
+    help="File must be shared as 'Anyone with the link'",
+)
+
 file_bytes: bytes | None = None
 file_name: str | None = None
 
@@ -131,6 +137,20 @@ if uploaded:
         st.session_state._file_bytes = uploaded.read()
     file_bytes = st.session_state._file_bytes
     file_name = uploaded.name
+elif gdrive_url:
+    cache_key = f"gdrive_{gdrive_url}"
+    if st.session_state.get("_file_key") != cache_key:
+        with st.spinner("Downloading from Google Drive..."):
+            try:
+                file_bytes, file_name = download_gdrive(gdrive_url)
+                st.session_state._file_key = cache_key
+                st.session_state._file_bytes = file_bytes
+                st.session_state._file_name = file_name
+            except Exception as exc:
+                st.error(str(exc))
+    else:
+        file_bytes = st.session_state._file_bytes
+        file_name = st.session_state._file_name
 
 if file_bytes and file_name:
     ext = file_name.rsplit(".", 1)[-1].lower()

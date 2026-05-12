@@ -1,6 +1,12 @@
 import io
 import os
+import subprocess
+import tempfile
 import time
+
+# Remove LD_LIBRARY_PATH before pydub imports ffmpeg/ffprobe subprocesses.
+# Without this, system ffmpeg fails with "symbol lookup error: libpango".
+os.environ.pop("LD_LIBRARY_PATH", None)
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 from pydub import AudioSegment
@@ -141,7 +147,13 @@ def _transcribe_chunked(client, file_bytes: bytes, filename: str,
     ext = _ext(filename)
     fmt = ext if ext in ("mp3", "wav", "ogg", "flac", "m4a", "mp4", "webm") else "mp3"
 
-    audio = AudioSegment.from_file(io.BytesIO(file_bytes), format=fmt)
+    with tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+    try:
+        audio = AudioSegment.from_file(tmp_path, format=fmt)
+    finally:
+        os.unlink(tmp_path)
     chunks = _split_on_silence(audio)
 
     all_segments: list[dict] = []
